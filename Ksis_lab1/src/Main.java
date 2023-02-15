@@ -13,10 +13,10 @@ public class Main {
             e.printStackTrace();
         }
     }
-
     public static void showPCMACs() {
-        final Enumeration<NetworkInterface> interfaces;
+        Enumeration<NetworkInterface> interfaces;
         try {
+            int num = 1;
             interfaces = NetworkInterface.getNetworkInterfaces();
             while (interfaces.hasMoreElements()) {
                 NetworkInterface inter = interfaces.nextElement();
@@ -26,20 +26,53 @@ public class Main {
                     for (int i = 0; i < hardwareAddress.length; i++) {
                         hexadecimalFormat[i] = String.format("%02X", hardwareAddress[i]);
                     }
-                    System.out.print(String.join("-", hexadecimalFormat)+"\t");
+                    System.out.print(num + "\t" + String.join("-", hexadecimalFormat)+"\t");
+                    InterfaceAddress host = inter.getInterfaceAddresses().get(0);
+                    System.out.print(host.getAddress().toString()+"\t");
                     System.out.println(inter.getDisplayName());
+                    num++;
                 }
             }
+            System.out.println();
         } catch (SocketException e) {
             e.printStackTrace();
         }
     }
 
+    public static int getScanInterface() {
+        Enumeration<NetworkInterface> interfaces;
+        InterfaceAddress host = null;
+        try {
+            System.out.println("Number of interface to scan:");
+            int number;
+            Scanner in = new Scanner(System.in);
+            number = in.nextInt();
+            int num = 1;
+            interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface inter = interfaces.nextElement();
+                final byte[] hardwareAddress = inter.getHardwareAddress();
+                if (hardwareAddress != null) {
+                    if (num==number)
+                    {
+                        host = inter.getInterfaceAddresses().get(0);
+                        break;
+                    }
+                    num++;
+                }
+            }
+            assert host != null;
+            return createIPReadingForm(host.getAddress());
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
     public static void start() throws UnknownHostException, SocketException {
         showPCMACs();
         System.out.println();
         Enumeration<NetworkInterface> interfaceEnumeration = NetworkInterface.getNetworkInterfaces();
-        int ip = takeIPFromLocalHost();
+        int ip = getScanInterface();
 
         System.out.println();
 
@@ -49,20 +82,6 @@ public class Main {
         }
 
         showMACAddresses(ip, mask);
-    }
-
-    private static int takeIPFromLocalHost() throws UnknownHostException, SocketException {
-        InetAddress localHost = Inet4Address.getLocalHost();
-        NetworkInterface ni = NetworkInterface.getByInetAddress(localHost);
-        byte[] hardwareAddress = ni.getHardwareAddress();
-        String[] hexadecimalFormat = new String[hardwareAddress.length];
-        for (int i = 0; i < hardwareAddress.length; i++) {
-            hexadecimalFormat[i] = String.format("%02X", hardwareAddress[i]);
-        }
-        System.out.println(String.join("-", hexadecimalFormat));
-        System.out.println(localHost.getHostAddress());
-        System.out.println(localHost.toString());
-        return createIPReadingForm(localHost);
     }
 
     private static int takeMaskValue(Enumeration<NetworkInterface> interfaceEnumeration, int oldValue) throws SocketException {
@@ -155,7 +174,6 @@ public class Main {
 
     private static String takeARP(String ip) throws IOException {
         String systemInput;
-        // Runtime.getRuntime().exec("arp -a");
         Scanner s = new Scanner(Runtime.getRuntime().exec("arp -a " + ip).getInputStream()).useDelimiter("\\A");
         systemInput = s.next();
         return systemInput;
